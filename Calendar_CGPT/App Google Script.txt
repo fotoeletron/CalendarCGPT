@@ -1,0 +1,97 @@
+function doGet(e) {
+  var action = e.parameter.action;
+  if (action == "getOrgs") return getOrgs();
+  if (action == "getEvents") return getEvents();
+  return ContentService.createTextOutput("Invalid action");
+}
+
+function doPost(e){
+  var data = JSON.parse(e.postData.contents);
+  var action = data.action;
+  if(action == "addOrg") return addOrg(data);
+  if(action == "addEvent") return addEvent(data);
+  if(action == "updateOrg") return updateOrg(data);
+  if(action == "updateEvent") return updateEvent(data);
+  if(action == "deleteOrg") return deleteOrg(data);
+  if(action == "deleteEvent") return deleteEvent(data);
+  return ContentService.createTextOutput("Invalid action");
+}
+
+// Funções CRUD para Organizations
+function getOrgs() {
+  var sh = SpreadsheetApp.getActive().getSheetByName("Organizations");
+  var data = sh.getDataRange().getValues();
+  data.shift(); // remove headers
+  return ContentService.createTextOutput(JSON.stringify(data.map(function(row){
+    return {id: row[0], name: row[1], color: row[2]};
+  }))).setMimeType(ContentService.MimeType.JSON);
+}
+function addOrg(data){
+  var sh = SpreadsheetApp.getActive().getSheetByName("Organizations");
+  sh.appendRow([data.id, data.name, data.color]);
+  return ContentService.createTextOutput(JSON.stringify({success:true}));
+}
+function updateOrg(data){
+  var sh = SpreadsheetApp.getActive().getSheetByName("Organizations");
+  var values = sh.getDataRange().getValues();
+  for(var i=1;i<values.length;i++){
+    if(values[i][0]==data.id){
+      sh.getRange(i+1,2).setValue(data.name);
+      sh.getRange(i+1,3).setValue(data.color);
+      break;
+    }
+  }
+  return ContentService.createTextOutput(JSON.stringify({success:true}));
+}
+function deleteOrg(data){
+  var sh = SpreadsheetApp.getActive().getSheetByName("Organizations");
+  var values = sh.getDataRange().getValues();
+  for(var i=1;i<values.length;i++){
+    if(values[i][0]==data.id){
+      sh.deleteRow(i+1);
+      break;
+    }
+  }
+  return ContentService.createTextOutput(JSON.stringify({success:true}));
+}
+
+// Funções CRUD para Events
+function getEvents() {
+  var sh = SpreadsheetApp.getActive().getSheetByName("Events");
+  var data = sh.getDataRange().getValues();
+  data.shift();
+  return ContentService.createTextOutput(JSON.stringify(data.map(function(row){
+    return {id: row[0], title: row[1], date: row[2], startTime: row[3], endTime: row[4], orgId: row[5]};
+  }))).setMimeType(ContentService.MimeType.JSON);
+}
+function addEvent(data){
+  var sh = SpreadsheetApp.getActive().getSheetByName("Events");
+  sh.appendRow([data.id, data.title, data.date, data.startTime, data.endTime, data.orgId]);
+  return ContentService.createTextOutput(JSON.stringify({success:true}));
+}
+function updateEvent(data){
+  var sh = SpreadsheetApp.getActive().getSheetByName("Events");
+  var values = sh.getDataRange().getValues();
+  for(var i=1;i<values.length;i++){
+    if(values[i][0]==data.id){
+      sh.getRange(i+1,2).setValue(data.title);
+      sh.getRange(i+1,3).setValue(data.date);
+      sh.getRange(i+1,4).setValue(data.startTime);
+      sh.getRange(i+1,5).setValue(data.endTime);
+      sh.getRange(i+1,6).setValue(data.orgId);
+      break;
+    }
+  }
+  return ContentService.createTextOutput(JSON.stringify({success:true}));
+}
+function deleteEvent(data){
+  var sh = SpreadsheetApp.getActive().getSheetByName("Events");
+  var values = sh.getDataRange().getValues();
+  for(var i=1;i<values.length;i++){
+    if(values[i][0]==data.id){
+      sh.deleteRow(i+1);
+      break;
+    }
+  }
+  return ContentService.createTextOutput(JSON.stringify({success:true}));
+}

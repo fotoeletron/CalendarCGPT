@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Calendário MNC</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+   body {
+  margin: 0;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #f2f6fc;
+  color: #222;
+}
+.splash {
+  position: fixed;
+  z-index: 9999;
+  background: #005fb8;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.splash img {
+  width: 120px;
+  animation: splash-anim 1.2s infinite alternate;
+}
+@keyframes splash-anim {
+  0% { transform: scale(1);}
+  100% {transform: scale(1.1);}
+}
+.login-modal {
+  position: fixed;
+  z-index: 1000;
+  background: rgba(0,0,0,0.12);
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.login-box {
+  background: #fff;
+  padding: 36px 32px;
+  border-radius: 12px;
+  box-shadow: 0 2px 16px #0001;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 250px;
+}
+.login-box input {
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #c3d2ee;
+  font-size: 1em;
+}
+.login-box button {
+  background: #005fb8;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 1em;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.login-box button:hover {
+  background: #004080;
+}
+
+.calendar-container {
+  display: flex;
+  min-height: 100vh;
+}
+.sidebar {
+  width: 210px;
+  background: #005fb8;
+  color: #fff;
+  padding: 24px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 100vh;
+}
+.sidebar h2 {
+  font-size: 1.3em;
+  margin-bottom: 12px;
+}
+.sidebar button, .sidebar a {
+  background: #fff2;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 8px;
+  margin-bottom: 8px;
+  font-size: 1em;
+  cursor: pointer;
+  text-decoration: none;
+  display: block;
+  text-align: left;
+  transition: background 0.2s;
+}
+.sidebar button:hover, .sidebar a:hover {
+  background: #fff4;
+}
+
+.calendar-main {
+  flex: 1;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+.calendar-header button {
+  background: #005fb8;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 16px;
+  font-size: 1.2em;
+  cursor: pointer;
+  margin: 0 4px;
+}
+.calendar-header span {
+  font-size: 1.2em;
+  font-weight: bold;
+  margin: 0 12px;
+}
+#yearSelect {
+  font-size: 1em;
+  padding: 5px;
+  border-radius: 6px;
+  border: 1px solid #c3d2ee;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 7px;
+  background: #e5eefb;
+  border-radius: 10px;
+  padding: 16px;
+  min-height: 420px;
+}
+.calendar-grid > div {
+  min-height: 58px;
+  background: #fff;
+  border-radius: 7px;
+  padding: 5px 4px 2px 4px;
+  box-sizing: border-box;
+  position: relative;
+  overflow: auto;
+}
+.calendar-grid > div:nth-child(-n+7) {
+  background: #e5eefb;
+  color: #005fb8;
+  font-weight: bold;
+}
+.calendar-day {
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+  border: 1px solid #e6e6e6;
+}
+.calendar-day:hover {
+  box-shadow: 0 2px 10px #005fb833;
+  background: #f3f9ff;
+}
+.day-number {
+  font-size: 1.1em;
+  font-weight: bold;
+  color: #005fb8;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.event-card {
+  background: #005fb8;
+  color: #fff;
+  border-radius: 6px;
+  padding: 4px 7px;
+  margin: 3px 0;
+  font-size: 0.97em;
+  box-shadow: 0 2px 10px #005fb822;
+}
+  </style>
+  <!-- jsPDF para exportação PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <!-- Splash -->
+  <div class="splash" id="splash">
+    <img src="ala.png" alt="Logo">
+  </div>
+  <!-- Login Modal -->
+  <div class="login-modal" id="loginModal" style="display:none;">
+    <form class="login-box" id="loginForm">
+      <h2>Bem-vindo ao Calendário MNC</h2>
+      <input type="password" id="password" placeholder="Digite a senha..." required autofocus>
+      <button type="submit">Entrar</button>
+      <span id="loginError" style="color:#d13438;display:none;">Senha incorreta!</span>
+    </form>
+  </div>
+  <!-- App -->
+  <div class="calendar-container" id="app" style="display:none;">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <h2>Menu</h2>
+      <button onclick="showOrgModal()">Gerenciar Organizações</button>
+      <button onclick="showBackupModal()">Recursos</button>
+      <button onclick="exportPDF()">Exportar PDF</button>
+      <a href="#" onclick="logout()">Sair</a>
+    </nav>
+    <!-- Main -->
+    <main class="calendar-main">
+      <div class="calendar-header">
+        <div>
+          <button onclick="prevMonth()">&lt;</button>
+          <span id="monthYear"></span>
+          <button onclick="nextMonth()">&gt;</button>
+        </div>
+        <div>
+          <select id="yearSelect" onchange="changeYear()"></select>
+        </div>
+      </div>
+      <div class="calendar-grid" id="calendarGrid"></div>
+    </main>
+  </div>
+  <!-- Modals -->
+  <div id="modals"></div>
+  <!-- Áudio de fundo -->
+  <div class="audio-control" id="audioControl">
+    <audio id="bgAudio" src="musica.mp3" loop autoplay></audio>
+    <button onclick="toggleAudio()" id="audioBtn">🔊</button>
+    <input type="range" min="0" max="1" step="0.01" value="0.3" id="audioVolume" style="width:80px;">
+  </div>
+  <script>
+    // --- Splash e Login ---
+    setTimeout(() => {
+      document.getElementById('splash').style.display = 'none';
+      document.getElementById('loginModal').style.display = 'flex';
+    }, 3000);
+
+    document.getElementById('loginForm').onsubmit = function(e){
+      e.preventDefault();
+      const pwd = document.getElementById('password').value;
+      if (pwd === 'Admin123') {
+        document.getElementById('loginModal').style.display = 'none';
+        document.getElementById('app').style.display = 'flex';
+        loadApp();
+      } else {
+        document.getElementById('loginError').style.display = 'block';
+      }
+    };
+    function logout(){
+      location.reload();
+    }
+
+    // --- Áudio ---
+    const bgAudio = document.getElementById('bgAudio');
+    const audioBtn = document.getElementById('audioBtn');
+    document.getElementById('audioVolume').oninput = e => {
+      bgAudio.volume = e.target.value;
+    };
+    bgAudio.volume = 0.3;
+    function toggleAudio(){
+      if(bgAudio.muted){ bgAudio.muted = false; audioBtn.textContent = '🔊'; }
+      else{ bgAudio.muted = true; audioBtn.textContent = '🔇'; }
+    }
+
+    // --- Variáveis globais ---
+    let organizations = [];
+    let events = [];
+    let currentMonth = new Date().getMonth();
+    let currentYear = new Date().getFullYear();
+
+    // --- Backend API URL ---
+    const API_URL = 'https://script.google.com/macros/s/AKfycbwc8UUo3tF1Lu8ZtDzEm3sNZKf8h2nCI_V8sP1m7Y_PZxSRrfNDKeSgL-tXAlDBCZZR6A/exec';
+
+    // --- Funções de carregamento ---
+    async function loadApp(){
+      try {
+        showLoading();
+        await loadOrganizations();
+        await loadEvents();
+        hideLoading();
+        renderCalendar();
+        renderYearSelect();
+      } catch (e) {
+        hideLoading();
+        showCalendarError("Erro ao carregar dados do calendário.<br>Verifique sua conexão ou tente novamente.");
+      }
+    }
+    function showLoading() {
+      document.getElementById('calendarGrid').innerHTML = "<div style='grid-column: span 7;text-align:center;padding:40px;font-size:1.2em;'>Carregando...</div>";
+    }
+    function hideLoading() {
+      // Não faz nada, só para clareza
+    }
+    function showCalendarError(msg) {
+      document.getElementById('calendarGrid').innerHTML = `<div style="grid-column: span 7; color: #d13438; text-align:center; padding: 40px;">${msg}</div>`;
+    }
+
+    async function loadOrganizations(){
+      try {
+        organizations = await fetch(`${API_URL}?action=getOrgs`).then(r=>r.json());
+        if (!Array.isArray(organizations)) organizations = [];
+      } catch (e) {
+        organizations = [];
+      }
+    }
+    async function loadEvents(){
+      try {
+        events = await fetch(`${API_URL}?action=getEvents`).then(r=>r.json());
+        if (!Array.isArray(events)) events = [];
+      } catch (e) {
+        events = [];
+      }
+    }
+
+    // --- Calendário ---
+    function renderCalendar(){
+      document.getElementById('monthYear').textContent = `${("0"+(currentMonth+1)).slice(-2)}/${currentYear}`;
+      const grid = document.getElementById('calendarGrid');
+      grid.innerHTML = '';
+      const days = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+      days.forEach(day=> {
+        const el = document.createElement('div');
+        el.textContent = day;
+        el.style.fontWeight = 'bold';
+        grid.appendChild(el);
+      });
+      const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+      const numDays = new Date(currentYear, currentMonth+1, 0).getDate();
+      for(let i=0;i<firstDay;i++) grid.appendChild(document.createElement('div'));
+      for(let d=1;d<=numDays;d++){
+        const dayEl = document.createElement('div');
+        dayEl.className = 'calendar-day';
+        dayEl.innerHTML = `<span class="day-number">${d}</span>`;
+        // Eventos do dia
+        const dateStr = `${d.toString().padStart(2,'0')}/${(currentMonth+1).toString().padStart(2,'0')}/${currentYear}`;
+        const dayEvents = Array.isArray(events) ? events.filter(ev=>ev.date===dateStr) : [];
+        dayEvents.forEach(ev=>{
+          const org = Array.isArray(organizations) ? organizations.find(o=>o.id===ev.orgId) : null;
+          const card = document.createElement('div');
+          card.className = 'event-card';
+          card.style.background = org ? org.color : '#888';
+          card.innerHTML = `<b>${org ? org.name : 'Org'}</b><span>${ev.title}</span><span>${ev.startTime} - ${ev.endTime}</span>
+            <div class="actions">
+              <button onclick="editEvent('${ev.id}')">Editar</button>
+              <button onclick="deleteEvent('${ev.id}')">Deletar</button>
+            </div>`;
+          dayEl.appendChild(card);
+        });
+        dayEl.onclick = ()=> addEventModal(dateStr);
+        grid.appendChild(dayEl);
+      }
+    }
+    function prevMonth(){ currentMonth--; if(currentMonth<0){currentMonth=11;currentYear--;} renderCalendar(); }
+    function nextMonth(){ currentMonth++; if(currentMonth>11){currentMonth=0;currentYear++;} renderCalendar(); }
+    function changeYear(){
+      currentYear = parseInt(document.getElementById('yearSelect').value);
+      renderCalendar();
+    }
+    function renderYearSelect(){
+      const sel = document.getElementById('yearSelect');
+      sel.innerHTML = '';
+      for(let y=currentYear-3;y<=currentYear+3;y++){
+        const opt = document.createElement('option');
+        opt.value = y; opt.textContent = y;
+        if(y===currentYear) opt.selected = true;
+        sel.appendChild(opt);
+      }
+    }
+
+    // --- Modais ---
+    function showModal(html){
+      document.getElementById('modals').innerHTML = `
+        <div class="modal-bg" onclick="closeModal(event)">
+          <div class="modal-box" onclick="event.stopPropagation()">
+            ${html}
+          </div>
+        </div>
+      `;
+    }
+    function closeModal(e){
+      if(!e || e.target.classList.contains('modal-bg'))
+        document.getElementById('modals').innerHTML = '';
+    }
+
+    // --- Gerenciar Organizações ---
+    function showOrgModal(){
+      let orgsHtml = organizations.map(org=>`
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+          <span style="width:18px;height:18px;border-radius:6px;background:${org.color};display:inline-block;"></span>
+          <b>${org.name}</b>
+          <button onclick="editOrg('${org.id}')">Editar</button>
+          <button onclick="deleteOrg('${org.id}')">Deletar</button>
+        </div>
+      `).join('');
+      showModal(`
+        <h3>Organizações</h3>
+        ${orgsHtml}
+        <button onclick="addOrgModal()">Adicionar Organização</button>
+        <button onclick="closeModal()">Fechar</button>
+      `);
+    }
+    function addOrgModal(){
+      showModal(`
+        <h3>Nova Organização</h3>
+        <input id="orgName" placeholder="Nome">
+        <input id="orgColor" type="color" value="#005fb8">
+        <button onclick="saveOrg()">Salvar</button>
+        <button onclick="closeModal()">Cancelar</button>
+      `);
+    }
+    async function saveOrg(){
+      const name = document.getElementById('orgName').value;
+      const color = document.getElementById('orgColor').value;
+      const id = Date.now().toString();
+      await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({action:'addOrg', id, name, color})
+      });
+      await loadOrganizations(); closeModal(); renderCalendar();
+    }
+    function editOrg(id){
+      const org = organizations.find(o=>o.id===id);
+      showModal(`
+        <h3>Editar Organização</h3>
+        <input id="orgName" value="${org.name}">
+        <input id="orgColor" type="color" value="${org.color}">
+        <button onclick="updateOrg('${id}')">Salvar</button>
+        <button onclick="closeModal()">Cancelar</button>
+      `);
+    }
+    async function updateOrg(id){
+      const name = document.getElementById('orgName').value;
+      const color = document.getElementById('orgColor').value;
+      await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({action:'updateOrg', id, name, color})
+      });
+      await loadOrganizations(); closeModal(); renderCalendar();
+    }
+    async function deleteOrg(id){
+      if(!confirm('Deletar organização?'))return;
+      await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({action:'deleteOrg', id})
+      });
+      await loadOrganizations(); closeModal(); renderCalendar();
+    }
+
+    // --- Adicionar/Editar/Deletar Evento ---
+    function addEventModal(date){
+      let orgOpts = organizations.map(o=>`<option value="${o.id}">${o.name}</option>`).join('');
+      showModal(`
+        <h3>Novo Evento</h3>
+        <input id="eventTitle" placeholder="Título do evento">
+        <input id="eventStart" type="time">
+        <input id="eventEnd" type="time">
+        <select id="eventOrg">${orgOpts}</select>
+        <input type="hidden" id="eventDate" value="${date}">
+        <button onclick="saveEvent()">Salvar</button>
+        <button onclick="closeModal()">Cancelar</button>
+      `);
+    }
+    async function saveEvent(){
+      const title = document.getElementById('eventTitle').value;
+      const startTime = document.getElementById('eventStart').value;
+      const endTime = document.getElementById('eventEnd').value;
+      const orgId = document.getElementById('eventOrg').value;
+      const date = document.getElementById('eventDate').value;
+      const id = Date.now().toString();
+      await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({action:'addEvent', id, title, date, startTime, endTime, orgId})
+      });
+      await loadEvents(); closeModal(); renderCalendar();
+    }
+    function editEvent(id){
+      const ev = events.find(e=>e.id===id);
+      let orgOpts = organizations.map(o=>`<option value="${o.id}" ${o.id===ev.orgId?'selected':''}>${o.name}</option>`).join('');
+      showModal(`
+        <h3>Editar Evento</h3>
+        <input id="eventTitle" value="${ev.title}">
+        <input id="eventStart" type="time" value="${ev.startTime}">
+        <input id="eventEnd" type="time" value="${ev.endTime}">
+        <select id="eventOrg">${orgOpts}</select>
+        <input type="hidden" id="eventDate" value="${ev.date}">
+        <button onclick="updateEvent('${id}')">Salvar</button>
+        <button onclick="closeModal()">Cancelar</button>
+      `);
+    }
+    async function updateEvent(id){
+      const title = document.getElementById('eventTitle').value;
+      const startTime = document.getElementById('eventStart').value;
+      const endTime = document.getElementById('eventEnd').value;
+      const orgId = document.getElementById('eventOrg').value;
+      const date = document.getElementById('eventDate').value;
+      await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({action:'updateEvent', id, title, date, startTime, endTime, orgId})
+      });
+      await loadEvents(); closeModal(); renderCalendar();
+    }
+    async function deleteEvent(id){
+      if(!confirm('Deletar evento?'))return;
+      await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({action:'deleteEvent', id})
+      });
+      await loadEvents(); closeModal(); renderCalendar();
+    }
+
+    // --- Backup/Restore ---
+    function showBackupModal(){
+      showModal(`
+        <h3>Backup e Recursos</h3>
+        <button onclick="downloadBackup()">Baixar Backup (JSON)</button>
+        <input type="file" id="restoreFile" style="display:none;" onchange="restoreBackup(this)">
+        <button onclick="document.getElementById('restoreFile').click()">Restaurar Backup</button>
+        <button onclick="closeModal()">Fechar</button>
+      `);
+    }
+    function downloadBackup(){
+      const data = { organizations, events, updated: new Date().toISOString() };
+      const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = 'backup_calendar.json'; a.click();
+    }
+    function restoreBackup(input){
+      const file = input.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = async function(e){
+        const data = JSON.parse(e.target.result);
+        // Simples: sobrescreve tudo (em produção, fazer merge)
+        for(let org of data.organizations){
+          await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({action:'addOrg', ...org})
+          });
+        }
+        for(let ev of data.events){
+          await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({action:'addEvent', ...ev})
+          });
+        }
+        await loadOrganizations(); await loadEvents(); closeModal(); renderCalendar();
+      };
+      reader.readAsText(file);
+    }
+    // Backup automático ao fechar
+    window.onbeforeunload = function(){
+      const data = { organizations, events, updated: new Date().toISOString() };
+      localStorage.setItem('calendar_backup', JSON.stringify(data));
+    };
+
+    // --- Exportação PDF ---
+    async function exportPDF(){
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.setFontSize(16);
+      doc.text(`Calendário - ${currentMonth+1}/${currentYear}`, 10, 15);
+
+      let y = 25;
+      // Cabeçalho dos dias
+      const days = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+      doc.setFontSize(12);
+      days.forEach((d, i) => doc.text(d, 10 + i*27, y));
+      y += 10;
+
+      // Dias do mês
+      const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+      const numDays = new Date(currentYear, currentMonth+1, 0).getDate();
+      let dayCount = 0;
+      let row = 0;
+      for(let i=0; i<firstDay; i++) dayCount++;
+      for(let d=1; d<=numDays; d++){
+        const col = dayCount % 7;
+        if(col===0 && d!==1){ row++; y += 25; }
+        let dateStr = `${d.toString().padStart(2,'0')}/${(currentMonth+1).toString().padStart(2,'0')}/${currentYear}`;
+        let evs = events.filter(ev=>ev.date===dateStr);
+        let txt = `${d}`;
+        if(evs.length){
+          txt += ' - ' + evs.map(ev=>{
+            let org = organizations.find(o=>o.id===ev.orgId);
+            return `${ev.title} (${org?org.name:''})`;
+          }).join('; ');
+        }
+        doc.text(txt, 10 + col*27, y);
+        dayCount++;
+      }
+
+      doc.save(`calendario_${currentMonth+1}_${currentYear}.pdf`);
+    }
+  </script>
+</body>
+</html>
